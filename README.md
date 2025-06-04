@@ -3,6 +3,8 @@ Assembly os is os made entirely in assembly.
 
 ![image](https://github.com/user-attachments/assets/df5307ae-0d6e-48e1-bcd7-77d2f29c7b84)
 
+Video Showcase: https://www.youtube.com/watch?v=9uRwTcXG23M
+
 # How to use
 
 ```
