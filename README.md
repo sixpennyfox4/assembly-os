@@ -10,7 +10,11 @@ make
 make run
 ```
 
-or download assembly_os.img
+or download assembly_os.img and run
+
+```
+qemu-system-i386 -drive file=assembly_os.img,format=raw,index=0,if=floppy
+```
 
 # Credits
 
