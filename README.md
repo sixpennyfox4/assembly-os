@@ -5,6 +5,12 @@ Assembly os is os made entirely in assembly.
 
 Video Showcase: https://www.youtube.com/watch?v=9uRwTcXG23M
 
+# Dependencies
+
+- nasm
+- qemu
+- make (optional)
+
 # How to use
 
 ```
