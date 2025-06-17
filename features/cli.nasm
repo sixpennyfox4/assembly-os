@@ -106,6 +106,16 @@ check_cmd:
 
     lea si, [cmd_buffer]
 
+    ; echo cmd
+    lea di, [cmd_echo_str]
+    mov cx, cmd_echo_len
+    cld
+    repe cmpsb
+
+    jz do_echo_cmd
+
+    lea si, [cmd_buffer]
+
     ; rick cmd
     lea di, [cmd_rick_str]
     mov cx, cmd_rick_len
@@ -200,6 +210,34 @@ do_clear_cmd:
     mov si, 0
     jmp print_cmd_prompt
 
+do_echo_cmd:
+    mov si, cmd_echo_len ; skip "echo"
+
+echo_skip_spaces:
+    mov al, [cmd_buffer + si]
+    cmp al, ' ' ; if empty space
+
+    jne print_echo
+
+    add si, 1
+    jmp echo_skip_spaces
+
+print_echo:
+    mov ah, 0x0E ; char print interrupt
+    mov al, [cmd_buffer + si] ; pass char
+    int 0x10 ; trigger interrupt
+
+    add si, 1 ; increase counter
+
+    cmp byte [cmd_buffer + si], 0 ; if \0
+    jne print_echo
+
+    mov si, 0
+    print_new_line
+    print_new_line
+
+    jmp print_cmd_prompt
+
 unknown_cmd:
     mov si, 0
 
@@ -258,11 +296,12 @@ cmd_help_output:
     db "version - print current OS version", 0xD, 0xA
     db "credits - print credits", 0xD, 0xA
     db "clear - clear the screen", 0xD, 0xA
+    db "echo [TEXT] - prints [TEXT]", 0xD, 0xA
     db "rick - ???", 0xD, 0xA
     db "reboot - reboot OS", 0xD, 0xA, 0xD, 0xA, 0
 
 cmd_version_output:
-    db "Assembly OS v0.1", 0xD, 0xA
+    db "Assembly OS v0.2", 0xD, 0xA
     db "Built entirely in assembly.", 0xD, 0xA, 0xD, 0xA, 0
 
 cmd_credits_output:
@@ -278,6 +317,9 @@ cmd_help_len: equ $ - cmd_help_str - 1 ; without null terminator
 
 cmd_clear_str: db "clear", 0
 cmd_clear_len: equ $ - cmd_clear_str - 1 ; without null terminator
+
+cmd_echo_str: db "echo", 0
+cmd_echo_len: equ $ - cmd_echo_str - 1 ; without null terminator
 
 cmd_version_str: db "version", 0
 cmd_version_len: equ $ - cmd_version_str - 1 ; without null terminator

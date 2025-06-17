@@ -27,7 +27,7 @@ start:
     sti ; enable interrupts
 
     mov ah, 0x02 ; read sectors
-    mov al, 3 ; 3 sectors
+    mov al, 4 ; 4 sectors
     mov ch, 0
     mov cl, 2 ; sector 2 (skip bootloader)
     mov dh, 0
