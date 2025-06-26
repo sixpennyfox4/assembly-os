@@ -2,14 +2,21 @@
 
 ; print command prompt
 print_cmd_prompt:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_prompt + si] ; pass char
-    int 0x10 ; trigger interrupt
+    ; clear cmd_buffer
+    mov di, cmd_buffer
+    mov cx, 128
 
-    add si, 1 ; increase counter
+.clear_cmd_buffer_loop:
+    mov byte [di], 0
+    inc di
+    dec cx
+    cmp cx, 0
+    jne .clear_cmd_buffer_loop
 
-    cmp byte [cmd_prompt + si], 0 ; if \0
-    jne print_cmd_prompt
+    mov si, 0
+
+    mov bx, cmd_prompt
+    call print_string
 
 mov si, 0
 
@@ -24,13 +31,17 @@ cmd_loop:
     cmp al, 0x0D ; if enter is pressed
     je check_cmd
 
+    ; if its 127 chars then it wont detect key
+    cmp si, 127
+    je cmd_loop
+
     mov [cmd_buffer + si], al ; store char
     ;mov byte [cmd_buffer + si + 1], 0 ; add null terminator
 
     mov ah, 0x0E ; char print interrupt
     int 0x10 ; trigger interrupt
 
-    add si, 1 ; increase counter
+    inc si ; increase counter
     jmp cmd_loop
 
 ; handle backspace
@@ -72,7 +83,7 @@ check_cmd:
     cld
     repe cmpsb
 
-    jz help_cmd_start
+    jz do_help_cmd
 
     lea si, [cmd_buffer]
 
@@ -82,7 +93,7 @@ check_cmd:
     cld
     repe cmpsb
 
-    jz version_cmd_start
+    jz do_version_cmd
 
     lea si, [cmd_buffer]
 
@@ -92,7 +103,7 @@ check_cmd:
     cld
     repe cmpsb
 
-    jz credits_cmd_start
+    jz do_credits_cmd
 
     lea si, [cmd_buffer]
 
@@ -116,13 +127,23 @@ check_cmd:
 
     lea si, [cmd_buffer]
 
+    ; add cmd
+    lea di, [cmd_add_str]
+    mov cx, cmd_add_len
+    cld
+    repe cmpsb
+
+    jz do_add_cmd
+
+    lea si, [cmd_buffer]
+
     ; rick cmd
     lea di, [cmd_rick_str]
     mov cx, cmd_rick_len
     cld
     repe cmpsb
 
-    jz rick_cmd_start
+    jz do_rick_cmd
 
     lea si, [cmd_buffer]
 
@@ -139,75 +160,43 @@ check_cmd:
 do_reboot_cmd:
     int 0x19 ; soft reboot
 
-rick_cmd_start:
-    mov si, 0
-
 do_rick_cmd:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_rick_output + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_rick_output + si], 0 ; if \0
-    jne do_rick_cmd
-
     mov si, 0
+
+    mov bx, cmd_rick_output
+    call print_string
+
     jmp print_cmd_prompt
-
-credits_cmd_start:
-    mov si, 0
 
 do_credits_cmd:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_credits_output + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_credits_output + si], 0 ; if \0
-    jne do_credits_cmd
-
     mov si, 0
+
+    mov bx, cmd_credits_output
+    call print_string
+
     jmp print_cmd_prompt
 
-version_cmd_start:
-    mov si, 0
 
 do_version_cmd:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_version_output + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_version_output + si], 0 ; if \0
-    jne do_version_cmd
-
     mov si, 0
+
+    mov bx, cmd_version_output
+    call print_string
+
     jmp print_cmd_prompt
 
-help_cmd_start:
-    mov si, 0
-
 do_help_cmd:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_help_output + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_help_output + si], 0 ; if \0
-    jne do_help_cmd
-
     mov si, 0
+
+    mov bx, cmd_help_output
+    call print_string
+
     jmp print_cmd_prompt
 
 do_clear_cmd:
     clear_screen
     ;print_new_line
 
-    mov si, 0
     jmp print_cmd_prompt
 
 do_echo_cmd:
@@ -219,64 +208,108 @@ echo_skip_spaces:
 
     jne print_echo
 
-    add si, 1
+    inc si
     jmp echo_skip_spaces
 
 print_echo:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_buffer + si] ; pass char
-    int 0x10 ; trigger interrupt
+    mov bx, cmd_buffer
+    call print_string
 
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_buffer + si], 0 ; if \0
-    jne print_echo
-
-    mov si, 0
     print_new_line
     print_new_line
 
     jmp print_cmd_prompt
 
+do_add_cmd:
+    mov si, cmd_add_len ; skip "add"
+
+; first param
+add_get_param_f:
+.param_f_loop:
+    mov al, [cmd_buffer + si]
+    cmp al, ' '
+
+    jne .param_f_save
+
+    inc si
+    jmp .param_f_loop
+
+.param_f_save:
+    mov dl, [cmd_buffer + si]
+    sub dl, '0' ; convert to number
+
+inc si
+
+; second param
+add_get_param_s:
+.param_s_loop:
+    mov al, [cmd_buffer + si]
+    cmp al, ' '
+
+    jne .param_s_save
+
+    inc si
+    jmp .param_s_loop
+
+.param_s_save:
+    mov bl, [cmd_buffer + si]
+    sub bl, '0' ; convert to number
+
+add dl, bl
+
+cmp dl, 9
+jbe add_single_digit ; if less or equal
+
+; if 2 digit
+mov ax, 0
+mov al, dl
+mov bl, 10
+mov dx, 0
+div bl
+
+add al, '0'
+mov [cmd_add_result], al
+add ah, '0'
+mov [cmd_add_result + 1], ah
+mov byte [cmd_add_result + 2], 0
+
+mov si, 0
+mov bx, cmd_add_result
+call print_string
+
+print_new_line
+print_new_line
+jmp print_cmd_prompt
+
+add_single_digit:
+    mov al, dl
+    add al, '0'
+    mov [cmd_add_result], al
+    mov byte [cmd_add_result + 1], 0
+
+    mov si, 0
+    mov bx, cmd_add_result
+    call print_string
+
+    print_new_line
+    print_new_line
+    jmp print_cmd_prompt
+
 unknown_cmd:
     mov si, 0
 
-print_unknown_cmd1:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [unknown_cmd_output1 + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [unknown_cmd_output1 + si], 0 ; if \0
-    jne print_unknown_cmd1
-
-mov si, 0
-
-; print the unknown cmd
-print_unknown_cmd_cmd:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [cmd_buffer + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [cmd_buffer + si], 0 ; if \0
-    jne print_unknown_cmd_cmd
-
-mov si, 0
-
-print_unknown_cmd2:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [unknown_cmd_output2 + si] ; pass char
-    int 0x10 ; trigger interrupt
-
-    add si, 1 ; increase counter
-
-    cmp byte [unknown_cmd_output2 + si], 0 ; if \0
-    jne print_unknown_cmd2
+    mov bx, unknown_cmd_output1
+    call print_string
 
     mov si, 0
+
+    mov bx, cmd_buffer
+    call print_string
+
+    mov si, 0
+
+    mov bx, unknown_cmd_output2
+    call print_string
 
     print_new_line
     print_new_line
@@ -289,6 +322,8 @@ cmd_buffer: times 128 db 0
 unknown_cmd_output1: db "Unknown command '", 0
 unknown_cmd_output2: db "'.", 0
 
+cmd_add_result: times 2 db 0
+
 cmd_help_output:
     db "Available commands:", 0xD, 0xA
     db "--------------------------------------", 0xD, 0xA
@@ -297,11 +332,12 @@ cmd_help_output:
     db "credits - print credits", 0xD, 0xA
     db "clear - clear the screen", 0xD, 0xA
     db "echo [TEXT] - prints [TEXT]", 0xD, 0xA
+    db "add [NUM1] [NUM2] - prints the sum of [NUM1] and [NUM2] (the inputs should be 1 digit)", 0xD, 0xA
     db "rick - ???", 0xD, 0xA
     db "reboot - reboot OS", 0xD, 0xA, 0xD, 0xA, 0
 
 cmd_version_output:
-    db "Assembly OS v0.2", 0xD, 0xA
+    db "Assembly OS v0.3", 0xD, 0xA
     db "Built entirely in assembly.", 0xD, 0xA, 0xD, 0xA, 0
 
 cmd_credits_output:
@@ -320,6 +356,9 @@ cmd_clear_len: equ $ - cmd_clear_str - 1 ; without null terminator
 
 cmd_echo_str: db "echo", 0
 cmd_echo_len: equ $ - cmd_echo_str - 1 ; without null terminator
+
+cmd_add_str: db "add", 0
+cmd_add_len: equ $ - cmd_add_str - 1 ; without null terminator
 
 cmd_version_str: db "version", 0
 cmd_version_len: equ $ - cmd_version_str - 1 ; without null terminator

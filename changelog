@@ -1,0 +1,9 @@
+V0.2:
+add echo command
+
+V0.3:
+make "ASSEMBLY" at start be in brown
+create a print_string call
+clear cmd_buffer after each command
+cant type more than 127 chars for input
+add add command

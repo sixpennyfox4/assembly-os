@@ -1,5 +1,5 @@
-[bits 16]
-[org 0x7C00] ; address loaded by BIOS
+ORG 0x7C00 ; address loaded by BIOS
+BITS 16
 
 mov si, 0
 
@@ -23,7 +23,7 @@ start:
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7C00 ; set stack pointer
+    mov sp, 0x9000 ; set stack pointer
     sti ; enable interrupts
 
     mov ah, 0x02 ; read sectors
@@ -53,7 +53,7 @@ disk_error:
 stop:
     jmp stop
 
-booting_msg: db "Booting into kernel...", 0
+booting_msg: db "Booting into Assembly OS kernel...", 0
 disk_error_msg: db "Disk read error!", 0
 
 times 510 - ($ - $$) db 0 ; filler

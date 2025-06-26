@@ -1,5 +1,5 @@
-[bits 16]
-[org 0x8000] ; address loaded by bootloader
+ORG 0x8000 ; address loaded by bootloader
+BITS 16
 
 %macro print_new_line 0
     mov ah, 0x0E ; char print interrupt
@@ -44,16 +44,56 @@ clear_screen
 
 mov si, 0 ; char counter for printing
 
+; print welcome_msg1
+mov bx, welcome_msg1
+call print_string
+
+mov si, 0 ; reset counter
+
 ; print welcome message
-print_welcome_msg:
-    mov ah, 0x0E ; char print interrupt
-    mov al, [welcome_msg + si] ; pass char
-    int 0x10 ; trigger interrupt
+print_welcome_msg_assembly:
+    mov al, [welcome_msg_assembly + si] ; pass char
+    cmp byte al, 0 ; if \0
+    je print_welcome_msg2
 
-    add si, 1 ; increase counter
+    cmp al, 0x0A ; if newline
+    je print_default_char
 
-    cmp byte [welcome_msg + si], 0 ; if \0
-    jne print_welcome_msg ; if not loop next char
+    cmp al, 0x0D ; if carriage return
+    je print_default_char
+
+    mov ah, 0x09
+    mov bh, 0x00
+    mov bl, 0x06 ; brown
+    mov cx, 1
+    int 0x10
+
+    ; move cursor forward
+    mov ah, 0x03
+    mov bh, 0x00
+    int 0x10
+
+    inc dl
+    mov ah, 0x02
+    mov bh, 0x00
+    int 0x10
+
+    add si, 1
+    jmp print_welcome_msg_assembly
+
+print_default_char:
+    mov ah, 0x0E
+    mov bh, 0x00
+    int 0x10
+
+    add si, 1
+    jmp print_welcome_msg_assembly
+
+print_welcome_msg2:
+    mov si, 0 ; reset counter
+
+    mov bx, welcome_msg2
+    call print_string
 
 mov si, 0 ; reset counter
 
@@ -62,9 +102,28 @@ print_new_line
 
 %include "features/cli.nasm"
 
-welcome_msg:
+print_string:
+    ; bx is string
+    mov ah, 0x0E ; char print interrupt
+    mov al, [bx + si] ; pass char
+    int 0x10 ; trigger interrupt
+
+    inc si ; increase counter
+
+    cmp byte [bx + si], 0 ; if \0
+    jne print_string ; if not loop next char
+
+    ret
+
+welcome_msg1:
     db "###################", 0xD, 0xA
-    db "#   ASSEMBLY OS   #", 0xD, 0xA
+    db "#   ", 0
+
+welcome_msg_assembly:
+    db "ASSEMBLY", 0
+
+welcome_msg2:
+    db " OS   #", 0xD, 0xA
     db "###################", 0xD, 0xA, 0xD, 0xA
 
     db "Creator: sixpennyfox4 (https://github.com/sixpennyfox4)", 0xD, 0xA
