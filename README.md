@@ -1,4 +1,4 @@
-# Assembly OS V0.2
+# Assembly OS V0.3
 Assembly os is os made entirely in assembly.
 
 ![image](https://github.com/user-attachments/assets/df5307ae-0d6e-48e1-bcd7-77d2f29c7b84)
