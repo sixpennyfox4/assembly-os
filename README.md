@@ -1,5 +1,5 @@
 # Assembly OS V0.3
-Assembly os is os made entirely in assembly.
+Assembly OS is a simple operating system written entirely in assembly.
 
 ![image](https://github.com/user-attachments/assets/68ddaa2a-6405-4ab4-909a-ec4a49978ce7)
 
